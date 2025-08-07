@@ -1,19 +1,21 @@
 #![allow(unused_imports)]
+
+mod parser;
+
 use std::net::{TcpListener, TcpStream};
-use std::io::{Read, Write};
+use std::io::{Read, Write, BufReader};
 use std::thread;
 use std::thread::JoinHandle;
+use parser::BasicRedisParser;
 
-fn handle_incoming(stream: &mut TcpStream) {
-    let mut buf = [0; 512];
-    loop {
-        let bytes_read = stream.read(&mut buf).unwrap();
-        if bytes_read != 0 {
-            stream.write_all(b"+PONG\r\n").unwrap();
-        } else {
-            break;
-        }
-    }
+use crate::parser::RedisParser;
+
+fn handle_incoming(stream: TcpStream) {
+    let parser = BasicRedisParser::new();
+    let mut reader = BufReader::new(stream);
+    let results = parser.parse_stream(&mut reader);
+
+    // stream.write_all(b"+PONG\r\n").unwrap();
 }
 
 fn main() {
@@ -25,9 +27,9 @@ fn main() {
 
     for stream in listener.incoming() {
         match stream {
-            Ok(mut _stream) => {
+            Ok(stream) => {
                 let handle = thread::spawn(move || {
-                    handle_incoming(&mut _stream);
+                    handle_incoming(stream);
                 });
                 handles.push(handle);
             }
